@@ -46,9 +46,9 @@ namespace ExcelDataReader.Portable
 		private ReadOption readOption = ReadOption.Strict;
 		private bool m_IsFirstRead;
 
-	    private const string WORKBOOK = "Workbook";
-		private const string BOOK = "Book";
-        private const string COLUMN = "Column";
+	    protected const string WORKBOOK = "Workbook";
+        protected const string BOOK = "Book";
+        protected const string COLUMN = "Column";
 
 		private bool disposed;
 
@@ -675,7 +675,7 @@ namespace ExcelDataReader.Portable
 			m_hdr = null;
 		}
 
-		private  object tryConvertOADateTime(double value, ushort XFormat)
+		private object tryConvertOADateTime(double value, ushort XFormat)
 		{
 		    ushort format = 0;
             if (XFormat >= 0 && XFormat < m_globals.ExtendedFormats.Count)
@@ -800,7 +800,7 @@ namespace ExcelDataReader.Portable
 
 		#region IExcelDataReader Members
 
-		public async Task InitializeAsync(Stream fileStream)
+		public virtual async Task InitializeAsync(Stream fileStream)
 		{
 			m_file = fileStream;
 
@@ -841,12 +841,12 @@ namespace ExcelDataReader.Portable
         //    return m_workbookData;
         //}
 
-		public string ExceptionMessage
+		public virtual string ExceptionMessage
 		{
 			get { return m_exceptionMessage; }
 		}
 
-		public string Name
+		public virtual string Name
 		{
 			get
 			{
@@ -857,7 +857,7 @@ namespace ExcelDataReader.Portable
 			}
 		}
 
-        public string VisibleState
+        public virtual string VisibleState
         {
             get
             {
@@ -868,12 +868,12 @@ namespace ExcelDataReader.Portable
             }
         }
 
-		public bool IsValid
+		public virtual bool IsValid
 		{
 			get { return m_isValid; }
 		}
 
-		public void Close()
+		public virtual void Close()
 		{
 			m_file.Dispose();
 			m_isClosed = true;
@@ -884,7 +884,7 @@ namespace ExcelDataReader.Portable
 			get { return m_depth; }
 		}
 
-		public int ResultsCount
+		public virtual int ResultsCount
 		{
 			get { return m_globals.Sheets.Count; }
 		}
@@ -1111,13 +1111,13 @@ namespace ExcelDataReader.Portable
 	        set { convertOaDate = value; }
 	    }
 
-	    public ReadOption ReadOption
+	    public virtual ReadOption ReadOption
 		{
 			get { return readOption; }
             set { readOption = value;  }
 		}
 
-	    public Encoding Encoding
+	    public virtual Encoding Encoding
 	    {
 	        get { return m_encoding; }
 	    }
@@ -1131,12 +1131,12 @@ namespace ExcelDataReader.Portable
 
         #region Dataset
 
-        public async Task LoadDataSetAsync(IDatasetHelper datasetHelper)
+        public virtual async Task LoadDataSetAsync(IDatasetHelper datasetHelper)
         {
             await LoadDataSetAsync(datasetHelper, false);
         }
 
-        public async Task LoadDataSetAsync(IDatasetHelper datasetHelper, bool convertOADateTime)
+        public virtual async Task LoadDataSetAsync(IDatasetHelper datasetHelper, bool convertOADateTime)
         {
             if (!m_isValid)
             {

@@ -30,7 +30,7 @@ namespace ExcelDataReader.Portable
 		/// <returns></returns>
 		public async Task<IExcelDataReader> CreateBinaryReaderAsync(Stream fileStream)
 		{
-            IExcelDataReader reader = new ExcelBinaryReader(dataHelper);
+            IExcelDataReader reader = new ReportingServicesExcelBinaryReader(dataHelper);
             await reader.InitializeAsync(fileStream);
 
 			return reader;
@@ -43,7 +43,7 @@ namespace ExcelDataReader.Portable
 		/// <returns></returns>
         public async Task<IExcelDataReader> CreateBinaryReaderAsync(Stream fileStream, ReadOption option)
 		{
-            IExcelDataReader reader = new ExcelBinaryReader(dataHelper);
+            IExcelDataReader reader = new ReportingServicesExcelBinaryReader(dataHelper);
 		    reader.ReadOption = option;
 			await reader.InitializeAsync(fileStream);
 

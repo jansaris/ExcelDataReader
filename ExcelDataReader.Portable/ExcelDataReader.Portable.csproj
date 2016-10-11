@@ -221,6 +221,7 @@
     <Compile Include="Log\LogManager.cs" />
     <Compile Include="Log\StringExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReportingServicesExcelBinaryReader.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="PCLStorage">
