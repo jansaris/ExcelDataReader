@@ -905,7 +905,7 @@ namespace ExcelDataReader.Portable
 			return true;
 		}
 
-		public bool Read()
+		public virtual bool Read()
 		{
 			if (!m_isValid) return false;
 

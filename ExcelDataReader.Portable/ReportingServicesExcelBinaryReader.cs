@@ -75,6 +75,12 @@ namespace ExcelDataReader.Portable
             Close();
             datasetHelper.DatasetLoadComplete();
         }
+
+        public override bool Read()
+        {
+            throw new NotSupportedException("Read is not supported, only LoadDataSet");
+        }
+
         public override void Close()
         {
             _file.Dispose();
@@ -232,7 +238,6 @@ namespace ExcelDataReader.Portable
                 return;
             }
 
-            //DataTable table = new DataTable(sheet.Name);
             datasetHelper.CreateNewTable(sheet.Name);
             datasetHelper.AddExtendedPropertyToTable("visiblestate", sheet.VisibleState);
 
@@ -250,12 +255,10 @@ namespace ExcelDataReader.Portable
 
             foreach (var index in header.Index.DbCellAddresses)
             {
-                if (currentRow == header.Rows) break;
-
                 var rowOffset = FindFirstDataCellOffset((int) index);
                 if(rowOffset == -1) continue;
 
-                var validRow = ReadWorkSheetRow(rowOffset, header, sheetData);
+                var validRow = ReadWorkSheetRow(rowOffset, currentRow, header, sheetData);
                 
                 if (!columnsCreated)
                 {
@@ -263,10 +266,11 @@ namespace ExcelDataReader.Portable
                     columnsCreated = true;
                     datasetHelper.BeginLoadData();
                 }
-                while (validRow)
+
+                while (validRow && currentRow <= header.Rows)
                 {
                     currentRow++;
-                    validRow = ReadWorkSheetRow(rowOffset, header, sheetData);
+                    validRow = ReadWorkSheetRow(rowOffset, currentRow, header, sheetData);
                 }
 
                 currentRow = 0;
@@ -292,13 +296,13 @@ namespace ExcelDataReader.Portable
 
         void WriteColumns(IDatasetHelper datasetHelper, Dictionary<string, ExcelCell> sheetData, SheetGlobals header, int currentRow)
         {
+            var firstRow = sheetData.Where(c => c.Value.Row == currentRow).ToList();
             for (var index = 0; index < header.Columns; index++)
             {
                 string name = null; //by default use no column names
                 if (IsFirstRowAsColumnNames)
                 {
-                    name = sheetData
-                        .FirstOrDefault(c => c.Value.Column == index && c.Value.Row == currentRow) //Search for matching excel cell
+                    name = firstRow.FirstOrDefault(c => c.Value.Column == index) //Search for matching excel cell
                         .Value? //If it is found and not null
                         .Value? //Read the value from the cell
                         .ToString(); //And convert it into a string
@@ -308,6 +312,14 @@ namespace ExcelDataReader.Portable
                     }
                 }
                 datasetHelper.AddColumn(name);
+            }
+            if (IsFirstRowAsColumnNames)
+            {
+                //Clean up the cells from the first row, because we used them as columns
+                foreach (var col in firstRow)
+                {
+                    sheetData.Remove(col.Key);
+                }
             }
         }
 
@@ -336,7 +348,7 @@ namespace ExcelDataReader.Portable
             return offs;
         }
 
-        bool ReadWorkSheetRow(int cellOffset, SheetGlobals sheetGlobals, Dictionary<string, ExcelCell> sheetData)
+        bool ReadWorkSheetRow(int cellOffset, int currentRowIndex, SheetGlobals sheetGlobals, Dictionary<string, ExcelCell> sheetData)
         {
             while (cellOffset < _excelStream.Size)
             {
@@ -349,12 +361,13 @@ namespace ExcelDataReader.Portable
                 var cell = rec as XlsBiffBlankCell;
 
                 if ((null == cell) || (cell.ColumnIndex >= sheetGlobals.Columns)) continue;
-                //if (cell.RowIndex != currentRowIndex)
-                //{
-                //    this.Log().Warn($"Wrong row! Expected {currentRowIndex} but found {cell.RowIndex}");
-                //    //cellOffset -= rec.Size; 
-                //    break;
-                //}
+                if (cell.RowIndex != currentRowIndex)
+                {
+                    //    this.Log().Warn($"Wrong row! Expected {currentRowIndex} but found {cell.RowIndex}");
+                    //cellOffset -= rec.Size; 
+                    continue;
+                    //break;
+                }
 
                 AddCell(sheetData, cell, sheetGlobals);
             }
@@ -571,7 +584,7 @@ namespace ExcelDataReader.Portable
         {
             var data = new SheetGlobals();
 
-            _file.Seek((int)sheet.DataOffset, SeekOrigin.Begin);
+            _excelStream.Seek((int)sheet.DataOffset, SeekOrigin.Begin);
 
             var bof = _excelStream.Read() as XlsBiffBOF;
             if (bof == null || bof.Type != BIFFTYPE.Worksheet) throw new Exception("Failed to read XLS BOF");
@@ -638,7 +651,7 @@ namespace ExcelDataReader.Portable
                     data.Columns = rowRecord.LastDefinedColumn;
                 }
 
-                data.Columns = (int)dims.LastRow;
+                data.Rows = (int)dims.LastRow;
                 sheet.Dimensions = dims;
             }
             else

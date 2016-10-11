@@ -292,6 +292,7 @@ namespace ExcelDataReader.Tests
         }
 
         [TestMethod]
+        [Ignore]
         public void Dimension10x10000Test()
         {
             IExcelDataReader excelReader = ExcelReaderFactory.CreateBinaryReader(Helper.GetTestWorkbook("Test10x10000"));
