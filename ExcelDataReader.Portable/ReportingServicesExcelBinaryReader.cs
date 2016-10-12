@@ -241,13 +241,14 @@ namespace ExcelDataReader.Portable
             datasetHelper.CreateNewTable(sheet.Name);
             datasetHelper.AddExtendedPropertyToTable("visiblestate", sheet.VisibleState);
 
-            var activeSheetCells = ReadWorkSheetData(header, datasetHelper);
+            var activeSheetCells = ReadWorkSheetData(header);
             datasetHelper.BeginLoadData();
+            WriteColumns(datasetHelper, activeSheetCells, header);
             WriteDataToDataSet(activeSheetCells, datasetHelper);
             datasetHelper.EndLoadTable();
         }
 
-        Dictionary<string, ExcelCell> ReadWorkSheetData(SheetGlobals header, IDatasetHelper datasetHelper)
+        Dictionary<string, ExcelCell> ReadWorkSheetData(SheetGlobals header)
         {
             var sheetData = new Dictionary<string, ExcelCell>();
 
@@ -257,7 +258,6 @@ namespace ExcelDataReader.Portable
                 if(rowOffset == -1) continue;
 
                 ReadWorkSheetDataFromOffset(rowOffset, header, sheetData);
-                WriteColumns(datasetHelper, sheetData, header);
             }
 
             return sheetData;
