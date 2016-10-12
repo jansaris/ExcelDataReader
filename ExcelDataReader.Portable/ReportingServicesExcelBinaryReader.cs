@@ -28,7 +28,7 @@ namespace ExcelDataReader.Portable
 
         XlsHeader _header;
         XlsWorkbookGlobals _workbookGlobals;
-        Encoding _encoding;
+        Encoding _encoding = Encoding.Unicode;
 
         #region public overriden methods from base class
 
@@ -249,8 +249,6 @@ namespace ExcelDataReader.Portable
 
         Dictionary<string, ExcelCell> ReadWorkSheetData(SheetGlobals header, IDatasetHelper datasetHelper)
         {
-            var currentRow = 0;
-            var columnsCreated = false;
             var sheetData = new Dictionary<string, ExcelCell>();
 
             foreach (var index in header.Index.DbCellAddresses)
@@ -258,25 +256,28 @@ namespace ExcelDataReader.Portable
                 var rowOffset = FindFirstDataCellOffset((int) index);
                 if(rowOffset == -1) continue;
 
-                var validRow = ReadWorkSheetRow(rowOffset, currentRow, header, sheetData);
-                
-                if (!columnsCreated)
-                {
-                    WriteColumns(datasetHelper, sheetData, header, currentRow);
-                    columnsCreated = true;
-                    datasetHelper.BeginLoadData();
-                }
-
-                while (validRow && currentRow <= header.Rows)
-                {
-                    currentRow++;
-                    validRow = ReadWorkSheetRow(rowOffset, currentRow, header, sheetData);
-                }
-
-                currentRow = 0;
+                ReadWorkSheetDataFromOffset(rowOffset, header, sheetData);
+                WriteColumns(datasetHelper, sheetData, header);
             }
 
             return sheetData;
+        }
+
+        void ReadWorkSheetDataFromOffset(int cellOffset, SheetGlobals sheetGlobals, Dictionary<string, ExcelCell> sheetData)
+        {
+            while (cellOffset < _excelStream.Size)
+            {
+                var rec = _excelStream.ReadAt(cellOffset);
+                cellOffset += rec.Size;
+
+                if ((rec is XlsBiffDbCell) || (rec is XlsBiffMSODrawing)) { continue; }
+                if (rec is XlsBiffEOF) { return; }
+
+                var cell = rec as XlsBiffBlankCell;
+                if ((null == cell) || (cell.ColumnIndex >= sheetGlobals.Columns)) continue;
+
+                AddCell(sheetData, cell, sheetGlobals);
+            }
         }
 
         void WriteDataToDataSet(Dictionary<string, ExcelCell> cells, IDatasetHelper datasetHelper)
@@ -294,9 +295,9 @@ namespace ExcelDataReader.Portable
             }
         }
 
-        void WriteColumns(IDatasetHelper datasetHelper, Dictionary<string, ExcelCell> sheetData, SheetGlobals header, int currentRow)
+        void WriteColumns(IDatasetHelper datasetHelper, Dictionary<string, ExcelCell> sheetData, SheetGlobals header)
         {
-            var firstRow = sheetData.Where(c => c.Value.Row == currentRow).ToList();
+            var firstRow = sheetData.Where(c => c.Value.Row == 0).ToList();
             for (var index = 0; index < header.Columns; index++)
             {
                 string name = null; //by default use no column names
@@ -346,33 +347,6 @@ namespace ExcelDataReader.Portable
             } while (true);
 
             return offs;
-        }
-
-        bool ReadWorkSheetRow(int cellOffset, int currentRowIndex, SheetGlobals sheetGlobals, Dictionary<string, ExcelCell> sheetData)
-        {
-            while (cellOffset < _excelStream.Size)
-            {
-                var rec = _excelStream.ReadAt(cellOffset);
-                cellOffset += rec.Size;
-
-                if ((rec is XlsBiffDbCell) || (rec is XlsBiffMSODrawing)) { break; }
-                if (rec is XlsBiffEOF) { return false; }
-
-                var cell = rec as XlsBiffBlankCell;
-
-                if ((null == cell) || (cell.ColumnIndex >= sheetGlobals.Columns)) continue;
-                if (cell.RowIndex != currentRowIndex)
-                {
-                    //    this.Log().Warn($"Wrong row! Expected {currentRowIndex} but found {cell.RowIndex}");
-                    //cellOffset -= rec.Size; 
-                    continue;
-                    //break;
-                }
-
-                AddCell(sheetData, cell, sheetGlobals);
-            }
-
-            return true;
         }
 
         void AddCell(IDictionary<string, ExcelCell> values, XlsBiffBlankCell cell, SheetGlobals sheetGlobals)
