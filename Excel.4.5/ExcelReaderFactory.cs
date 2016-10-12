@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using ExcelDataReader.Desktop.Portable;
+using ExcelDataReader.Portable;
 using ExcelDataReader.Portable.Async;
 using ExcelDataReader.Portable.Data;
 using ExcelDataReader.Portable.IO;
@@ -57,7 +58,19 @@ namespace Excel
 
         }
 
+        /// <summary>
+        /// Creates an instance of <see cref="ReportingServicesExcelBinaryReader"/>
+        /// </summary>
+        /// <param name="fileStream">The file stream.</param>
+        /// <returns></returns>
+        public static IExcelDataReader CreateReportingServicesBinaryReaderAsync(Stream fileStream)
+        {
+            var factory = CreateFactory();
 
+            var reader = AsyncHelper.RunSync(() => factory.CreateReportingServicesBinaryReaderAsync(fileStream));
+
+            return new ExcelBinaryReader(reader);
+        }
 
         /// <summary>
         /// Creates an instance of <see cref="ExcelBinaryReader"/>

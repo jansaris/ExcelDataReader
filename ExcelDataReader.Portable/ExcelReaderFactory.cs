@@ -23,14 +23,27 @@ namespace ExcelDataReader.Portable
 	        this.fileSystem = fileSystem;
 	    }
 
-	    /// <summary>
-		/// Creates an instance of <see cref="ExcelBinaryReader"/>
+        /// <summary>
+		/// Creates an instance of <see cref="ReportingServicesExcelBinaryReader"/>
 		/// </summary>
 		/// <param name="fileStream">The file stream.</param>
 		/// <returns></returns>
-		public async Task<IExcelDataReader> CreateBinaryReaderAsync(Stream fileStream)
-		{
+		public async Task<IExcelDataReader> CreateReportingServicesBinaryReaderAsync(Stream fileStream)
+        {
             IExcelDataReader reader = new ReportingServicesExcelBinaryReader(dataHelper);
+            await reader.InitializeAsync(fileStream);
+
+            return reader;
+        }
+        
+        /// <summary>
+        /// Creates an instance of <see cref="ExcelBinaryReader"/>
+        /// </summary>
+        /// <param name="fileStream">The file stream.</param>
+        /// <returns></returns>
+        public async Task<IExcelDataReader> CreateBinaryReaderAsync(Stream fileStream)
+		{
+            IExcelDataReader reader = new ExcelBinaryReader(dataHelper);
             await reader.InitializeAsync(fileStream);
 
 			return reader;
@@ -43,7 +56,7 @@ namespace ExcelDataReader.Portable
 		/// <returns></returns>
         public async Task<IExcelDataReader> CreateBinaryReaderAsync(Stream fileStream, ReadOption option)
 		{
-            IExcelDataReader reader = new ReportingServicesExcelBinaryReader(dataHelper);
+            IExcelDataReader reader = new ExcelBinaryReader(dataHelper);
 		    reader.ReadOption = option;
 			await reader.InitializeAsync(fileStream);
 

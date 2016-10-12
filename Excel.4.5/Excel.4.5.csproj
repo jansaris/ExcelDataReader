@@ -89,6 +89,7 @@
     <Compile Include="ExcelBinaryReader.cs" />
     <Compile Include="ExcelReaderFactory.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReportingServicesExcelBinaryReader.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Excel.snk" />
