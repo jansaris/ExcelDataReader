@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("ExcelDataReader")]
 [assembly: AssemblyDescription("Excel data reader for .Net")]
 [assembly: AssemblyProduct("ExcelDataReader")]
-[assembly: AssemblyVersion("2.1.2.3")]
+[assembly: AssemblyVersion("2.1.2.4")]
 
 [assembly: ComVisible(false)]
 
