@@ -55,6 +55,13 @@ namespace ExcelDataReader.Portable
             }
         }
 
+        /// <summary>
+        /// Opens the given stream and reads the workbook globals
+        /// If an error occurs, the stream will be closed and an error will be written
+        /// in the ExceptionMessage property 
+        /// </summary>
+        /// <param name="fileStream"></param>
+        /// <returns></returns>
         public override async Task InitializeAsync(Stream fileStream)
         {
             m_file = fileStream;
@@ -63,11 +70,22 @@ namespace ExcelDataReader.Portable
             await Task.Run(() => readWorkBookGlobals());
         }
 
+        /// <summary>
+        /// Loads all the data from the workbook into the given datasethelper
+        /// </summary>
+        /// <param name="datasetHelper">Dataset helper which gets filled with all the data</param>
+        /// <returns></returns>
         public override async Task LoadDataSetAsync(IDatasetHelper datasetHelper)
         {
             await LoadDataSetAsync(datasetHelper, false);
         }
 
+        /// <summary>
+        /// Loads all the data from the workbook into the given datasethelper
+        /// </summary>
+        /// <param name="datasetHelper">Dataset helper which gets filled with all the data</param>
+        /// <param name="convertOADateTime">Tries to convert all the readed datetime values</param>
+        /// <returns></returns>
         public override async Task LoadDataSetAsync(IDatasetHelper datasetHelper, bool convertOADateTime)
         {
             datasetHelper.IsValid = IsValid;
@@ -86,6 +104,9 @@ namespace ExcelDataReader.Portable
             throw new NotSupportedException("Read is not supported, only LoadDataSet");
         }
 
+        /// <summary>
+        /// Closes the open stream and releases all the resources
+        /// </summary>
         public override void Close()
         {
             m_file?.Dispose();
@@ -104,6 +125,10 @@ namespace ExcelDataReader.Portable
 
         #endregion
 
+        /// <summary>
+        /// Reads all the global variables from the excel stream
+        /// Logic copied from ExcelBinaryReader and cleaned up
+        /// </summary>
         void readWorkBookGlobals()
         {
             try
@@ -154,7 +179,6 @@ namespace ExcelDataReader.Portable
                             if (sheet.Type != XlsBiffBoundSheet.SheetType.Worksheet) break;
 
                             sheet.IsV8 = isV8();
-                            //sheet.UseEncoding = Encoding;
                             this.Log().Debug("BOUNDSHEET IsV8={0}", sheet.IsV8);
 
                             m_sheets.Add(new XlsWorksheet(m_workbookGlobals.Sheets.Count, sheet));
@@ -181,7 +205,6 @@ namespace ExcelDataReader.Portable
                         case BIFFRECORDTYPE.FORMAT_V23:
                             {
                                 var fmt = (XlsBiffFormatString)rec;
-                                //fmt.UseEncoding = m_encoding;
                                 m_workbookGlobals.Formats.Add((ushort)m_workbookGlobals.Formats.Count, fmt);
                             }
                             break;
@@ -213,7 +236,6 @@ namespace ExcelDataReader.Portable
                         case BIFFRECORDTYPE.PROTECT:
                         case BIFFRECORDTYPE.PASSWORD:
                         case BIFFRECORDTYPE.PROT4REVPASSWORD:
-                            //IsProtected
                             break;
                         case BIFFRECORDTYPE.EOF:
                             m_workbookGlobals.SST?.ReadStrings();
@@ -230,6 +252,10 @@ namespace ExcelDataReader.Portable
             }
         }
 
+        /// <summary>
+        /// Reads all the sheets and writes the data into the datasetHelper
+        /// </summary>
+        /// <param name="datasetHelper">datasetHelper which get's filled with all the data</param>
         void readAllSheets(IDatasetHelper datasetHelper)
         {
             if (m_closed) return;
@@ -239,6 +265,11 @@ namespace ExcelDataReader.Portable
             }
         }
 
+        /// <summary>
+        /// Reads the data of a single sheet into the datasethelper
+        /// </summary>
+        /// <param name="sheet">Excel sheet to read</param>
+        /// <param name="datasetHelper">datasetHelper which get's filled with all the data</param>
         void readSheet(XlsWorksheet sheet, IDatasetHelper datasetHelper)
         {
             SheetGlobals header;
@@ -253,16 +284,25 @@ namespace ExcelDataReader.Portable
                 return;
             }
 
+            //Read all the content from the sheet
+            var activeSheetCells = readWorkSheetData(header);
+            //And write the data into the datasethelper
             datasetHelper.CreateNewTable(sheet.Name);
             datasetHelper.AddExtendedPropertyToTable("visiblestate", sheet.VisibleState);
-
-            var activeSheetCells = readWorkSheetData(header);
             datasetHelper.BeginLoadData();
             writeColumns(datasetHelper, activeSheetCells, header);
             writeDataToDataSet(activeSheetCells, datasetHelper);
             datasetHelper.EndLoadTable();
         }
 
+        /// <summary>
+        /// Reads all the cell data from the excel stream into a dictionary
+        /// </summary>
+        /// <param name="header">Sheet header data</param>
+        /// <returns>Dictionary with all the data: 
+        /// Key = cell reference eg 1:5 or 5:8 used for fast lookup
+        /// Value = ExcelCell with data
+        /// </returns>
         Dictionary<string, ExcelCell> readWorkSheetData(SheetGlobals header)
         {
             var sheetData = new Dictionary<string, ExcelCell>();
@@ -278,6 +318,13 @@ namespace ExcelDataReader.Portable
             return sheetData;
         }
 
+        /// <summary>
+        /// Reads all the data starting at a specific cell Offset
+        /// All the cells will be added to the sheetData variable
+        /// </summary>
+        /// <param name="cellOffset">cellOffset to start reading from</param>
+        /// <param name="sheetGlobals">Global information about the sheet</param>
+        /// <param name="sheetData">Dictionary with all the cells for this sheet</param>
         void readWorkSheetDataFromOffset(int cellOffset, SheetGlobals sheetGlobals, Dictionary<string, ExcelCell> sheetData)
         {
             while (cellOffset < m_excelStream.Size)
@@ -295,50 +342,13 @@ namespace ExcelDataReader.Portable
             }
         }
 
-        void writeDataToDataSet(Dictionary<string, ExcelCell> cells, IDatasetHelper datasetHelper)
-        {
-            var sheetCells = cells.Values.GroupBy(c => c.Row).OrderBy(c => c.Key);
-            foreach (var row in sheetCells)
-            {
-                var columns = row.Max(c => c.Column);
-                var data = new object[columns + 1];
-                for (var col = 0; col <= columns; col++)
-                {
-                    data[col] = row.FirstOrDefault(c => c.Column == col)?.Value;
-                }
-                datasetHelper.AddRow(data);
-            }
-        }
-
-        void writeColumns(IDatasetHelper datasetHelper, Dictionary<string, ExcelCell> sheetData, SheetGlobals header)
-        {
-            var firstRow = sheetData.Where(c => c.Value.Row == 0).ToList();
-            for (var index = 0; index < header.Columns; index++)
-            {
-                string name = null; //by default use no column names
-                if (IsFirstRowAsColumnNames)
-                {
-                    name = firstRow.FirstOrDefault(c => c.Value.Column == index) //Search for matching excel cell
-                        .Value? //If it is found and not null
-                        .Value? //Read the value from the cell
-                        .ToString(); //And convert it into a string
-                    if (string.IsNullOrWhiteSpace(name)) //If this name is null
-                    {
-                        name = string.Concat(COLUMN, index); //then use default names like: Column1, Column2     
-                    }
-                }
-                datasetHelper.AddColumn(name);
-            }
-            if (IsFirstRowAsColumnNames)
-            {
-                //Clean up the cells from the first row, because we used them as columns
-                foreach (var col in firstRow)
-                {
-                    sheetData.Remove(col.Key);
-                }
-            }
-        }
-
+        /// <summary>
+        /// Seeks for an offset of the first data cell starting 
+        /// from the given offset
+        /// </summary>
+        /// <param name="startOffset">Start offset</param>
+        /// <returns>Offset of the first datacell after the start offset
+        /// Or -1 if no data cell is found</returns>
         int findFirstDataCellOffset(int startOffset)
         {
             //seek to the first dbcell record
@@ -364,6 +374,13 @@ namespace ExcelDataReader.Portable
             return offs;
         }
 
+        /// <summary>
+        /// Adds/overwrites the given cell to the values dictionary
+        ///     If cell is a multi record all the values of the multi record cell get readed
+        /// </summary>
+        /// <param name="values">Dictionary with all the cells</param>
+        /// <param name="cell">Current excel cell which value should be read and added to the values dictionary</param>
+        /// <param name="sheetGlobals">Sheet information</param>
         void addCell(IDictionary<string, ExcelCell> values, XlsBiffBlankCell cell, SheetGlobals sheetGlobals)
         {
             if (cell.ID == BIFFRECORDTYPE.MULRK)
@@ -383,6 +400,43 @@ namespace ExcelDataReader.Portable
             }
         }
 
+        /// <summary>
+        /// Adds/overwrites the value to the dictionary
+        /// Only if the column and row index is valid based on the sheet information
+        /// </summary>
+        /// <param name="cells">Dictionary with all the cells</param>
+        /// <param name="value">Cell value which needs to be added</param>
+        /// <param name="columnIndex">Cell column index which needs to be added</param>
+        /// <param name="rowIndex">Cell row index which needs to be added</param>
+        /// <param name="sheetGlobals">Sheet information</param>
+        void addCell(IDictionary<string, ExcelCell> cells, object value, ushort columnIndex, ushort rowIndex, SheetGlobals sheetGlobals)
+        {
+            if (rowIndex >= sheetGlobals.Rows || columnIndex >= sheetGlobals.Columns)
+            {
+                LogManager.Log(this).Warn("Cannot write value in cell({0},{1}): {2}", rowIndex, columnIndex, value);
+                return;
+            }
+            
+            var key = $"{rowIndex}:{columnIndex}";
+            if (!cells.ContainsKey(key))
+            {
+                cells.Add(key, new ExcelCell(value, columnIndex, rowIndex));
+                return;
+            }
+            var existingCell = cells[key];
+            var existingValue = existingCell.Value?.ToString();
+            var newValue = value?.ToString();
+            if (existingValue == newValue) return;
+            this.Log().Info($"Overwrite value '{existingValue}' with '{newValue}' on {rowIndex}:{columnIndex}");
+            existingCell.Value = value;
+        }
+
+        /// <summary>
+        /// Reads the value from the excel cell 
+        /// and tries to convert it into a strong typed value
+        /// </summary>
+        /// <param name="cell">Excel cell</param>
+        /// <returns>Strongly typed value</returns>
         object readCellValue(XlsBiffBlankCell cell)
         {
             double dValue;
@@ -436,6 +490,14 @@ namespace ExcelDataReader.Portable
             return null;
         }
 
+        /// <summary>
+        /// Only if ConvertOaDate is true 
+        /// it will try to convert the double with the given excel  format into a date time
+        /// If it fails, it will return the given value
+        /// </summary>
+        /// <param name="value">Value to convert</param>
+        /// <param name="xFormat">DateTime format</param>
+        /// <returns>DateTime on success, value on error</returns>
         object convertOaDateTime(double value, ushort xFormat)
         {
             return ConvertOaDate ? 
@@ -443,6 +505,14 @@ namespace ExcelDataReader.Portable
                 value;
         }
 
+        /// <summary>
+        /// Only if ConvertOaDate is true 
+        /// it will try to convert the value with the given excel  format into a date time
+        /// If it fails, it will return the given value
+        /// </summary>
+        /// <param name="value">Value to convert</param>
+        /// <param name="xFormat">DateTime format</param>
+        /// <returns>DateTime on success, value on error</returns>
         object convertOaDateTime(object value, ushort xFormat)
         {
             if (!ConvertOaDate) return value;
@@ -454,6 +524,13 @@ namespace ExcelDataReader.Portable
                 value;
         }
 
+        /// <summary>
+        /// Convert the value with the given excel format into a date time
+        /// If it fails, it will return the given value
+        /// </summary>
+        /// <param name="value">Value to convert</param>
+        /// <param name="xFormat">DateTime format</param>
+        /// <returns>DateTime on success, value on error</returns>
         object tryConvertOaDateTime(double value, ushort xFormat)
         {
             ushort format;
@@ -547,28 +624,11 @@ namespace ExcelDataReader.Portable
             }
         }
 
-        void addCell(IDictionary<string, ExcelCell> cells, object value, ushort columnIndex, ushort rowIndex, SheetGlobals sheetGlobals)
-        {
-            if (rowIndex >= sheetGlobals.Rows || columnIndex >= sheetGlobals.Columns)
-            {
-                LogManager.Log(this).Warn("Cannot write value in cell({0},{1}): {2}", rowIndex, columnIndex, value);
-                return;
-            }
-            
-            var key = $"{rowIndex}:{columnIndex}";
-            if (!cells.ContainsKey(key))
-            {
-                cells.Add(key, new ExcelCell(value, columnIndex, rowIndex));
-                return;
-            }
-            var existingCell = cells[key];
-            var existingValue = existingCell.Value?.ToString();
-            var newValue = value?.ToString();
-            if (existingValue == newValue) return;
-            this.Log().Info($"Overwrite value '{existingValue}' with '{newValue}' on {rowIndex}:{columnIndex}");
-            existingCell.Value = value;
-        }
-
+        /// <summary>
+        /// Reads all the sheet variables from the excel stream
+        /// Logic copied from ExcelBinaryReader and cleaned up
+        /// </summary>
+        /// <returns>A SheetGlobals object with the properties set</returns>
         SheetGlobals readWorkSheetGlobals(XlsWorksheet sheet)
         {
             var data = new SheetGlobals();
@@ -662,6 +722,69 @@ namespace ExcelDataReader.Portable
             return data;
         }
 
+        /// <summary>
+        /// Prepares the datasethelper by adding the columns for this sheet
+        /// If IsFirstRowAsColumnNames it will use the first row from the sheet as column names
+        /// If IsFirstRowAsColumnNames the first row will also be deleted fromt the sheetdata dictionary
+        /// Else it will just add columns without a name
+        /// </summary>
+        /// <param name="datasetHelper">Datasethelper add the columns to</param>
+        /// <param name="sheetData">Excel cells for this sheet</param>
+        /// <param name="header">Sheet global properties</param>
+        void writeColumns(IDatasetHelper datasetHelper, Dictionary<string, ExcelCell> sheetData, SheetGlobals header)
+        {
+            var firstRow = sheetData.Where(c => c.Value.Row == 0).ToList();
+            for (var index = 0; index < header.Columns; index++)
+            {
+                string name = null; //by default use no column names
+                if (IsFirstRowAsColumnNames)
+                {
+                    name = firstRow.FirstOrDefault(c => c.Value.Column == index) //Search for matching excel cell
+                        .Value? //If it is found and not null
+                        .Value? //Read the value from the cell
+                        .ToString(); //And convert it into a string
+                    if (string.IsNullOrWhiteSpace(name)) //If this name is null
+                    {
+                        name = string.Concat(COLUMN, index); //then use default names like: Column1, Column2     
+                    }
+                }
+                datasetHelper.AddColumn(name);
+            }
+            if (IsFirstRowAsColumnNames)
+            {
+                //Clean up the cells from the first row, because we used them as columns
+                foreach (var col in firstRow)
+                {
+                    sheetData.Remove(col.Key);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes all the cell values to the datasethelper
+        /// </summary>
+        /// <param name="cells">All cell values</param>
+        /// <param name="datasetHelper">Datasethelper to fill with the cell values</param>
+        void writeDataToDataSet(Dictionary<string, ExcelCell> cells, IDatasetHelper datasetHelper)
+        {
+            var sheetCells = cells.Values.GroupBy(c => c.Row).OrderBy(c => c.Key);
+            foreach (var row in sheetCells)
+            {
+                var columns = row.Max(c => c.Column);
+                var data = new object[columns + 1];
+                for (var col = 0; col <= columns; col++)
+                {
+                    data[col] = row.FirstOrDefault(c => c.Column == col)?.Value;
+                }
+                datasetHelper.AddRow(data);
+            }
+        }
+
+        /// <summary>
+        /// It will set the error message 
+        /// And then closes the stream
+        /// </summary>
+        /// <param name="message"></param>
         void setError(string message)
         {
             m_errorMessage = message;
