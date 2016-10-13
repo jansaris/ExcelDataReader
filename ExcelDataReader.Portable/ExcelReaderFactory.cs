@@ -24,13 +24,13 @@ namespace ExcelDataReader.Portable
 	    }
 
         /// <summary>
-		/// Creates an instance of <see cref="ReportingServicesExcelBinaryReader"/>
+		/// Creates an instance of <see cref="CrystalReportsExcelBinaryReader"/>
 		/// </summary>
 		/// <param name="fileStream">The file stream.</param>
 		/// <returns></returns>
-		public async Task<IExcelDataReader> CreateReportingServicesBinaryReaderAsync(Stream fileStream)
+		public async Task<IExcelDataReader> CreateCrystalReportsBinaryReaderAsync(Stream fileStream)
         {
-            IExcelDataReader reader = new ReportingServicesExcelBinaryReader(dataHelper);
+            IExcelDataReader reader = new CrystalReportsExcelBinaryReader(dataHelper);
             await reader.InitializeAsync(fileStream);
 
             return reader;

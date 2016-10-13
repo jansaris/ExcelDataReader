@@ -7,7 +7,7 @@ using ExcelDataReader.Portable.Async;
 
 namespace Excel
 {
-    public class ReportingServicesExcelBinaryReader : IExcelDataReader
+    public class CrystalReportsExcelBinaryReader : IExcelDataReader
     {
 
         #region Members
@@ -17,7 +17,7 @@ namespace Excel
 
         #endregion
 
-        internal ReportingServicesExcelBinaryReader(ExcelDataReader.Portable.IExcelDataReader portableReader)
+        internal CrystalReportsExcelBinaryReader(ExcelDataReader.Portable.IExcelDataReader portableReader)
         {
             portable = portableReader;
         }
@@ -46,7 +46,7 @@ namespace Excel
             }
         }
 
-        ~ReportingServicesExcelBinaryReader()
+        ~CrystalReportsExcelBinaryReader()
         {
             Dispose(false);
         }

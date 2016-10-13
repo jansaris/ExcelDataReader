@@ -59,15 +59,15 @@ namespace Excel
         }
 
         /// <summary>
-        /// Creates an instance of <see cref="ReportingServicesExcelBinaryReader"/>
+        /// Creates an instance of <see cref="CrystalReportsExcelBinaryReader"/>
         /// </summary>
         /// <param name="fileStream">The file stream.</param>
         /// <returns></returns>
-        public static IExcelDataReader CreateReportingServicesBinaryReaderAsync(Stream fileStream)
+        public static IExcelDataReader CreateCrystalReportsBinaryReaderAsync(Stream fileStream)
         {
             var factory = CreateFactory();
 
-            var reader = AsyncHelper.RunSync(() => factory.CreateReportingServicesBinaryReaderAsync(fileStream));
+            var reader = AsyncHelper.RunSync(() => factory.CreateCrystalReportsBinaryReaderAsync(fileStream));
 
             return new ExcelBinaryReader(reader);
         }

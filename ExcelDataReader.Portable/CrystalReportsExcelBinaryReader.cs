@@ -11,9 +11,9 @@ using ExcelDataReader.Portable.Log;
 
 namespace ExcelDataReader.Portable
 {
-    public class ReportingServicesExcelBinaryReader : ExcelBinaryReader
+    public class CrystalReportsExcelBinaryReader : ExcelBinaryReader
     {
-        public ReportingServicesExcelBinaryReader(IDataHelper dataHelper) : base(dataHelper)
+        public CrystalReportsExcelBinaryReader(IDataHelper dataHelper) : base(dataHelper)
         {
 
         }
