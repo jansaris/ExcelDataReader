@@ -7,6 +7,9 @@ using ExcelDataReader.Portable.Async;
 
 namespace Excel
 {
+    /// <summary>
+    /// A wrapper class around CrystalReportsExcelBinaryReader from the portable namespace
+    /// </summary>
     public class CrystalReportsExcelBinaryReader : IExcelDataReader
     {
 

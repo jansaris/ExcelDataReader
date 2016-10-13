@@ -69,7 +69,7 @@ namespace ExcelDataReader.Portable
 
 		#region IDisposable Members
 
-		public void Dispose()
+		public virtual void Dispose()
 		{
 			Dispose(true);
 
