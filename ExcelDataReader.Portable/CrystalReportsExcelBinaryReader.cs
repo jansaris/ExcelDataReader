@@ -330,13 +330,14 @@ namespace ExcelDataReader.Portable
             while (cellOffset < m_excelStream.Size)
             {
                 var rec = m_excelStream.ReadAt(cellOffset);
+                if (rec == null) return; 
                 cellOffset += rec.Size;
 
-                if ((rec is XlsBiffDbCell) || (rec is XlsBiffMSODrawing)) { continue; }
-                if (rec is XlsBiffEOF) { return; }
+                if ((rec is XlsBiffDbCell) || (rec is XlsBiffMSODrawing)) continue; 
+                if (rec is XlsBiffEOF) return; 
 
                 var cell = rec as XlsBiffBlankCell;
-                if ((null == cell) || (cell.ColumnIndex >= sheetGlobals.Columns)) continue;
+                if ((null == cell) || (cell.ColumnIndex >= sheetGlobals.Columns)) continue; 
 
                 addCell(sheetData, cell, sheetGlobals);
             }
